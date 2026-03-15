@@ -10,8 +10,39 @@ body { margin: 0; }
 header h1 { margin: 0 0 6px; }
 header p { margin: 0 0 14px; color: #475569; }
 
-.tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+.tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
 .tabs button.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+
+.projectsBar {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.projectTabs {
+  margin-bottom: 0;
+}
+
+.projectActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.projectActions input {
+  min-width: 220px;
+  height: 38px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0 10px;
+}
+
+.statusLine {
+  font-size: 13px;
+  color: #475569;
+  margin-bottom: 10px;
+}
 
 main {
   display: grid;

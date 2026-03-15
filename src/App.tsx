@@ -15,13 +15,27 @@ import {
 
 import '@xyflow/react/dist/style.css';
 
+type DiagramMeta = {
+  id: string;
+  name: string;
+  updatedAt: string;
+};
+
+type Diagram = {
+  id: string;
+  name: string;
+  nodes: Node[];
+  edges: Edge[];
+  updatedAt: string;
+};
+
 const DEFAULT_DIAGRAM = `flowchart TD
-  A[Agent posts opportunity] --> B[Marketplace status: Open]
+  A[Agent posts opportunity] --> B[Marketplace status Open]
   B --> C[Advisor clicks Interested]
-  C --> D[Interest saved + Interested ✓]
+  C --> D[Interest saved + Interested]
   D --> E[Agent reviews interested advisors]
   E --> F[Agent selects advisor]
-  F --> G[Status: advisor_selected]
+  F --> G[Status advisor_selected]
   G --> H[Removed from open marketplace]
   H --> I[Shared timeline page]
   I --> J[Both can comment + update milestones]
@@ -42,6 +56,15 @@ const INITIAL_EDGES: Edge[] = [
 
 mermaid.initialize({ startOnLoad: false, securityLevel: 'loose', theme: 'default' });
 
+function parseSafe<T>(raw: string | null, fallback: T): T {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 export function App() {
   const [mode, setMode] = useState<'visual' | 'code'>('visual');
   const [code, setCode] = useState(() => localStorage.getItem('flowchart_code') || DEFAULT_DIAGRAM);
@@ -51,11 +74,54 @@ export function App() {
   const previewRef = useRef<HTMLDivElement>(null);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>(
-    () => JSON.parse(localStorage.getItem('flowchart_nodes') || 'null') || INITIAL_NODES
+    parseSafe<Node[]>(localStorage.getItem('flowchart_nodes'), INITIAL_NODES)
   );
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(
-    () => JSON.parse(localStorage.getItem('flowchart_edges') || 'null') || INITIAL_EDGES
+    parseSafe<Edge[]>(localStorage.getItem('flowchart_edges'), INITIAL_EDGES)
   );
+
+  const [diagrams, setDiagrams] = useState<DiagramMeta[]>([]);
+  const [activeDiagramId, setActiveDiagramId] = useState<string>('');
+  const [activeName, setActiveName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('');
+
+  const loadList = useCallback(async () => {
+    const res = await fetch('/api/diagrams');
+    if (!res.ok) throw new Error('Failed to load diagrams list');
+    const json = (await res.json()) as { diagrams: DiagramMeta[] };
+    setDiagrams(json.diagrams || []);
+
+    if (!activeDiagramId && json.diagrams?.length) {
+      setActiveDiagramId(json.diagrams[0].id);
+    }
+  }, [activeDiagramId]);
+
+  const loadDiagram = useCallback(async (diagramId: string) => {
+    if (!diagramId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/diagrams/${diagramId}`);
+      if (!res.ok) throw new Error('Failed to load diagram');
+      const json = (await res.json()) as { diagram: Diagram };
+      setNodes(json.diagram.nodes || INITIAL_NODES);
+      setEdges(json.diagram.edges || INITIAL_EDGES);
+      setActiveName(json.diagram.name || 'Untitled Diagram');
+      setStatusMsg(`Loaded: ${json.diagram.name}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [setEdges, setNodes]);
+
+  useEffect(() => {
+    loadList().catch((e) => setStatusMsg(`API error: ${String(e)}`));
+  }, [loadList]);
+
+  useEffect(() => {
+    if (activeDiagramId) {
+      loadDiagram(activeDiagramId).catch((e) => setStatusMsg(`Load failed: ${String(e)}`));
+    }
+  }, [activeDiagramId, loadDiagram]);
 
   useEffect(() => {
     localStorage.setItem('flowchart_code', code);
@@ -104,8 +170,8 @@ export function App() {
             kind === 'action'
               ? 'New Action'
               : kind === 'decision'
-              ? 'New Decision'
-              : 'End',
+                ? 'New Decision'
+                : 'End',
         },
         type: kind === 'end' ? 'output' : 'default',
         position: { x: 220 + (curr.length % 3) * 280, y },
@@ -116,6 +182,77 @@ export function App() {
   const clearVisual = () => {
     setNodes(INITIAL_NODES);
     setEdges(INITIAL_EDGES);
+    setStatusMsg('Canvas reset (not saved yet)');
+  };
+
+  const saveActive = async () => {
+    if (!activeDiagramId) {
+      setStatusMsg('No active diagram selected');
+      return;
+    }
+
+    const res = await fetch(`/api/diagrams/${activeDiagramId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: activeName, nodes, edges }),
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      setStatusMsg(`Save failed: ${txt}`);
+      return;
+    }
+
+    setStatusMsg('Saved ✓');
+    await loadList();
+  };
+
+  const createProject = async () => {
+    const name = window.prompt('New project name?', 'New Flowchart Project');
+    if (!name) return;
+
+    const res = await fetch('/api/diagrams', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, nodes: INITIAL_NODES, edges: INITIAL_EDGES }),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      setStatusMsg(`Create failed: ${txt}`);
+      return;
+    }
+
+    const json = (await res.json()) as { diagram: Diagram };
+    await loadList();
+    setActiveDiagramId(json.diagram.id);
+    setStatusMsg(`Created project: ${json.diagram.name}`);
+  };
+
+  const applyBlueprintFromPrompt = async () => {
+    if (!activeDiagramId) return;
+    const text = window.prompt('Paste blueprint JSON with { nodes, edges, name? }');
+    if (!text) return;
+
+    try {
+      const payload = JSON.parse(text) as { name?: string; nodes: Node[]; edges: Edge[] };
+      const res = await fetch(`/api/diagrams/${activeDiagramId}/apply-blueprint`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const msg = await res.text();
+        setStatusMsg(`Blueprint apply failed: ${msg}`);
+        return;
+      }
+
+      await loadDiagram(activeDiagramId);
+      await loadList();
+      setStatusMsg('Blueprint applied ✓');
+    } catch {
+      setStatusMsg('Invalid JSON blueprint');
+    }
   };
 
   const downloadSvg = () => {
@@ -167,8 +304,36 @@ export function App() {
     <div className="app">
       <header>
         <h1>Flowchart Builder</h1>
-        <p>Visual drag/drop workflow canvas + Mermaid code editor.</p>
+        <p>Public API + project tabs + visual drag/drop workflow canvas.</p>
       </header>
+
+      <div className="projectsBar">
+        <div className="tabs projectTabs">
+          {diagrams.map((d) => (
+            <button
+              key={d.id}
+              className={activeDiagramId === d.id ? 'active' : ''}
+              onClick={() => setActiveDiagramId(d.id)}
+              title={`${d.name} • ${new Date(d.updatedAt).toLocaleString()}`}
+            >
+              {d.name}
+            </button>
+          ))}
+          <button onClick={createProject}>+ New Project</button>
+        </div>
+
+        <div className="projectActions">
+          <input
+            value={activeName}
+            onChange={(e) => setActiveName(e.target.value)}
+            placeholder="Project name"
+          />
+          <button onClick={saveActive}>Save Project</button>
+          <button onClick={applyBlueprintFromPrompt}>Apply Blueprint JSON</button>
+        </div>
+      </div>
+
+      <div className="statusLine">{loading ? 'Loading…' : statusMsg || 'Ready'}</div>
 
       <div className="tabs">
         <button className={mode === 'visual' ? 'active' : ''} onClick={() => setMode('visual')}>
@@ -191,7 +356,14 @@ export function App() {
           </aside>
 
           <div className="canvasWrap">
-            <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect} fitView>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              fitView
+            >
               <MiniMap />
               <Controls />
               <Background />
@@ -217,7 +389,11 @@ export function App() {
               </div>
             </div>
 
-            {error ? <pre className="error">{error}</pre> : <div className="canvas" ref={previewRef} dangerouslySetInnerHTML={{ __html: svg }} />}
+            {error ? (
+              <pre className="error">{error}</pre>
+            ) : (
+              <div className="canvas" ref={previewRef} dangerouslySetInnerHTML={{ __html: svg }} />
+            )}
           </section>
         </main>
       )}
