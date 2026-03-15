@@ -3,7 +3,7 @@ import mermaid from 'mermaid';
 
 const DEFAULT_DIAGRAM = `flowchart TD
   A[Agent posts opportunity] --> B[Marketplace status: Open]
-  B --> C[Advisor clicks \"I'm Interested\"]
+  B --> C[Advisor clicks Interested]
   C --> D[Interest saved + Interested ✓]
   D --> E[Agent reviews interested advisors]
   E --> F[Agent selects advisor]
