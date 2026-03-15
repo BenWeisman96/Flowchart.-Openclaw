@@ -3,14 +3,15 @@
   color: #0f172a;
   background: #f8fafc;
 }
-
 * { box-sizing: border-box; }
-
 body { margin: 0; }
 
-.app { padding: 16px; max-width: 1400px; margin: 0 auto; }
+.app { padding: 16px; max-width: 1440px; margin: 0 auto; }
 header h1 { margin: 0 0 6px; }
-header p { margin: 0 0 16px; color: #475569; }
+header p { margin: 0 0 14px; color: #475569; }
+
+.tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+.tabs button.active { background: #0f172a; color: #fff; border-color: #0f172a; }
 
 main {
   display: grid;
@@ -18,26 +19,38 @@ main {
   gap: 12px;
 }
 
+.visualWrap {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 12px;
+  height: 78vh;
+}
+
+.panel,
 section {
-  background: white;
+  background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 12px;
-  min-height: 75vh;
 }
 
-.row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
+.panel { display: flex; flex-direction: column; gap: 8px; }
+.panel h2 { margin: 0 0 4px; font-size: 16px; }
+.hint { margin-top: 4px; color: #64748b; font-size: 13px; }
+
+.canvasWrap {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
 }
 
+.row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 h2 { font-size: 16px; margin: 0 0 8px; }
 
 textarea {
   width: 100%;
-  height: calc(75vh - 56px);
+  height: calc(78vh - 56px);
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 10px;
@@ -55,7 +68,6 @@ button {
   padding: 8px 12px;
   cursor: pointer;
 }
-
 button:hover { background: #f1f5f9; }
 button:disabled { opacity: .5; cursor: not-allowed; }
 
@@ -65,7 +77,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   border: 1px dashed #cbd5e1;
   border-radius: 8px;
   padding: 12px;
-  height: calc(75vh - 56px);
+  height: calc(78vh - 56px);
   overflow: auto;
   background: #fff;
 }
@@ -79,8 +91,9 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   padding: 10px;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1100px) {
+  .visualWrap { grid-template-columns: 1fr; height: auto; }
   main { grid-template-columns: 1fr; }
-  section { min-height: auto; }
+  .canvasWrap { height: 56vh; }
   textarea, .canvas { height: 42vh; }
 }
