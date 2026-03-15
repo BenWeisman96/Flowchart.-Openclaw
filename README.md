@@ -31,6 +31,18 @@ npm run build
 npm run preview
 ```
 
+## Production run (single host for app + API)
+
+```bash
+npm run build
+npm run start
+```
+
+- App: `GET /`
+- API: `GET /api/*`
+
+This is the mode to deploy on Replit (non-static deployment target).
+
 ---
 
 ## API (preliminary, no auth)

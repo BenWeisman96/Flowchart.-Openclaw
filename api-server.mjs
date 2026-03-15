@@ -7,7 +7,6 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const API_PORT = Number(process.env.PORT || process.env.API_PORT || 5001);
 const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'diagrams.json');
 const LOG_FILE = path.join(__dirname, 'logs', 'api.log');
@@ -89,135 +88,137 @@ async function logEvent(req, status, message = '') {
   await fs.appendFile(LOG_FILE, line, 'utf8').catch(() => {});
 }
 
-const app = express();
-app.use(cors({ origin: '*' }));
-app.use(express.json({ limit: MAX_BODY_BYTES }));
+export function createApiApp() {
+  const app = express();
+  app.use(cors({ origin: '*' }));
+  app.use(express.json({ limit: MAX_BODY_BYTES }));
 
-app.get('/api/health', async (req, res) => {
-  await logEvent(req, 200, 'health');
-  res.json({ ok: true, service: 'flowchart-api', now: nowIso() });
-});
+  app.get('/api/health', async (req, res) => {
+    await logEvent(req, 200, 'health');
+    res.json({ ok: true, service: 'flowchart-api', now: nowIso() });
+  });
 
-app.get('/api/diagrams', async (req, res) => {
-  const store = await readStore();
-  const list = store.diagrams.map((d) => ({ id: d.id, name: d.name, updatedAt: d.updatedAt }));
-  await logEvent(req, 200, `count=${list.length}`);
-  res.json({ diagrams: list });
-});
-
-app.post('/api/diagrams', async (req, res) => {
-  try {
-    validateDiagramPayload(req.body);
+  app.get('/api/diagrams', async (req, res) => {
     const store = await readStore();
-    const name = sanitizeText(req.body.name || 'Untitled Diagram', 120) || 'Untitled Diagram';
-    const diagram = {
-      id: makeId(name),
-      name,
-      nodes: req.body.nodes,
-      edges: req.body.edges,
-      updatedAt: nowIso(),
-    };
-    store.diagrams.unshift(diagram);
-    await writeStore(store);
-    await logEvent(req, 201, `id=${diagram.id}`);
-    res.status(201).json({ diagram });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Invalid request';
-    await logEvent(req, 400, message);
-    res.status(400).json({ error: message });
-  }
-});
+    const list = store.diagrams.map((d) => ({ id: d.id, name: d.name, updatedAt: d.updatedAt }));
+    await logEvent(req, 200, `count=${list.length}`);
+    res.json({ diagrams: list });
+  });
 
-app.get('/api/diagrams/:id', async (req, res) => {
-  const store = await readStore();
-  const diagram = store.diagrams.find((d) => d.id === req.params.id);
-  if (!diagram) {
-    await logEvent(req, 404, 'not found');
-    return res.status(404).json({ error: 'Diagram not found' });
-  }
-  await logEvent(req, 200, `id=${diagram.id}`);
-  res.json({ diagram });
-});
+  app.post('/api/diagrams', async (req, res) => {
+    try {
+      validateDiagramPayload(req.body);
+      const store = await readStore();
+      const name = sanitizeText(req.body.name || 'Untitled Diagram', 120) || 'Untitled Diagram';
+      const diagram = {
+        id: makeId(name),
+        name,
+        nodes: req.body.nodes,
+        edges: req.body.edges,
+        updatedAt: nowIso(),
+      };
+      store.diagrams.unshift(diagram);
+      await writeStore(store);
+      await logEvent(req, 201, `id=${diagram.id}`);
+      res.status(201).json({ diagram });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Invalid request';
+      await logEvent(req, 400, message);
+      res.status(400).json({ error: message });
+    }
+  });
 
-app.put('/api/diagrams/:id', async (req, res) => {
-  try {
-    validateDiagramPayload(req.body, { allowPartial: true });
+  app.get('/api/diagrams/:id', async (req, res) => {
     const store = await readStore();
-    const i = store.diagrams.findIndex((d) => d.id === req.params.id);
-    if (i < 0) {
+    const diagram = store.diagrams.find((d) => d.id === req.params.id);
+    if (!diagram) {
       await logEvent(req, 404, 'not found');
       return res.status(404).json({ error: 'Diagram not found' });
     }
+    await logEvent(req, 200, `id=${diagram.id}`);
+    res.json({ diagram });
+  });
 
-    const current = store.diagrams[i];
-    const next = {
-      ...current,
-      name: 'name' in req.body ? sanitizeText(req.body.name || 'Untitled Diagram', 120) : current.name,
-      nodes: 'nodes' in req.body ? req.body.nodes : current.nodes,
-      edges: 'edges' in req.body ? req.body.edges : current.edges,
-      updatedAt: nowIso(),
-    };
+  app.put('/api/diagrams/:id', async (req, res) => {
+    try {
+      validateDiagramPayload(req.body, { allowPartial: true });
+      const store = await readStore();
+      const i = store.diagrams.findIndex((d) => d.id === req.params.id);
+      if (i < 0) {
+        await logEvent(req, 404, 'not found');
+        return res.status(404).json({ error: 'Diagram not found' });
+      }
 
-    store.diagrams[i] = next;
-    await writeStore(store);
-    await logEvent(req, 200, `id=${next.id}`);
-    res.json({ diagram: next });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Invalid request';
-    await logEvent(req, 400, message);
-    res.status(400).json({ error: message });
-  }
-});
+      const current = store.diagrams[i];
+      const next = {
+        ...current,
+        name: 'name' in req.body ? sanitizeText(req.body.name || 'Untitled Diagram', 120) : current.name,
+        nodes: 'nodes' in req.body ? req.body.nodes : current.nodes,
+        edges: 'edges' in req.body ? req.body.edges : current.edges,
+        updatedAt: nowIso(),
+      };
 
-app.delete('/api/diagrams/:id', async (req, res) => {
-  const store = await readStore();
-  const before = store.diagrams.length;
-  store.diagrams = store.diagrams.filter((d) => d.id !== req.params.id);
-  if (store.diagrams.length === before) {
-    await logEvent(req, 404, 'not found');
-    return res.status(404).json({ error: 'Diagram not found' });
-  }
-  await writeStore(store);
-  await logEvent(req, 200, `id=${req.params.id}`);
-  res.json({ ok: true });
-});
+      store.diagrams[i] = next;
+      await writeStore(store);
+      await logEvent(req, 200, `id=${next.id}`);
+      res.json({ diagram: next });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Invalid request';
+      await logEvent(req, 400, message);
+      res.status(400).json({ error: message });
+    }
+  });
 
-app.post('/api/diagrams/:id/apply-blueprint', async (req, res) => {
-  try {
-    validateDiagramPayload(req.body);
+  app.delete('/api/diagrams/:id', async (req, res) => {
     const store = await readStore();
-    const i = store.diagrams.findIndex((d) => d.id === req.params.id);
-    if (i < 0) {
+    const before = store.diagrams.length;
+    store.diagrams = store.diagrams.filter((d) => d.id !== req.params.id);
+    if (store.diagrams.length === before) {
       await logEvent(req, 404, 'not found');
       return res.status(404).json({ error: 'Diagram not found' });
     }
-
-    const current = store.diagrams[i];
-    const next = {
-      ...current,
-      name: sanitizeText(req.body.name || current.name, 120),
-      nodes: req.body.nodes,
-      edges: req.body.edges,
-      updatedAt: nowIso(),
-    };
-
-    store.diagrams[i] = next;
     await writeStore(store);
-    await logEvent(req, 200, `blueprint_applied id=${next.id}`);
-    res.json({ diagram: next });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Invalid request';
-    await logEvent(req, 400, message);
-    res.status(400).json({ error: message });
-  }
-});
+    await logEvent(req, 200, `id=${req.params.id}`);
+    res.json({ ok: true });
+  });
 
-const DIST_DIR = path.join(__dirname, 'dist');
-app.use(express.static(DIST_DIR));
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(DIST_DIR, 'index.html'));
-});
+  app.post('/api/diagrams/:id/apply-blueprint', async (req, res) => {
+    try {
+      validateDiagramPayload(req.body);
+      const store = await readStore();
+      const i = store.diagrams.findIndex((d) => d.id === req.params.id);
+      if (i < 0) {
+        await logEvent(req, 404, 'not found');
+        return res.status(404).json({ error: 'Diagram not found' });
+      }
 
-app.listen(API_PORT, () => {
-  console.log(`[flowchart-api] listening on :${API_PORT}`);
-});
+      const current = store.diagrams[i];
+      const next = {
+        ...current,
+        name: sanitizeText(req.body.name || current.name, 120),
+        nodes: req.body.nodes,
+        edges: req.body.edges,
+        updatedAt: nowIso(),
+      };
+
+      store.diagrams[i] = next;
+      await writeStore(store);
+      await logEvent(req, 200, `blueprint_applied id=${next.id}`);
+      res.json({ diagram: next });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Invalid request';
+      await logEvent(req, 400, message);
+      res.status(400).json({ error: message });
+    }
+  });
+
+  return app;
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const API_PORT = Number(process.env.PORT || process.env.API_PORT || 5001);
+  const app = createApiApp();
+  app.listen(API_PORT, () => {
+    console.log(`[flowchart-api] listening on :${API_PORT}`);
+  });
+}

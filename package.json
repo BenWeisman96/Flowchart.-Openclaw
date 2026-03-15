@@ -8,7 +8,8 @@
     "dev:web": "vite",
     "dev:api": "API_PORT=5001 node api-server.mjs",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0 --port 5000"
+    "preview": "vite preview --host 0.0.0.0 --port 5000",
+    "start": "node server.mjs"
   },
   "dependencies": {
     "@xyflow/react": "^12.10.1",
