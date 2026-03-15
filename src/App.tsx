@@ -5,6 +5,7 @@ import {
   MiniMap,
   Controls,
   Background,
+  MarkerType,
   addEdge,
   useEdgesState,
   useNodesState,
@@ -166,8 +167,36 @@ export function App() {
     localStorage.setItem('flowchart_edges', JSON.stringify(edges));
   }, [edges]);
 
+  const defaultEdgeOptions = useMemo(
+    () => ({
+      markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' },
+      style: { stroke: '#64748b', strokeWidth: 2 },
+      animated: true,
+    }),
+    []
+  );
+
+  const renderedEdges = useMemo(
+    () =>
+      edges.map((edge) => ({
+        ...edge,
+        markerEnd: edge.markerEnd ?? { type: MarkerType.ArrowClosed, color: '#64748b' },
+      })),
+    [edges]
+  );
+
   const onConnect = useCallback(
-    (connection: Connection) => setEdges((eds) => addEdge({ ...connection, animated: true }, eds)),
+    (connection: Connection) =>
+      setEdges((eds) =>
+        addEdge(
+          {
+            ...connection,
+            animated: true,
+            markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' },
+          },
+          eds
+        )
+      ),
     [setEdges]
   );
 
@@ -384,10 +413,11 @@ export function App() {
           <div className="canvasWrap">
             <ReactFlow
               nodes={nodes}
-              edges={edges}
+              edges={renderedEdges}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
+              defaultEdgeOptions={defaultEdgeOptions}
               fitView
             >
               <MiniMap />
