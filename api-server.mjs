@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const API_PORT = Number(process.env.API_PORT || 5001);
+const API_PORT = Number(process.env.PORT || process.env.API_PORT || 5001);
 const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'diagrams.json');
 const LOG_FILE = path.join(__dirname, 'logs', 'api.log');
@@ -210,6 +210,12 @@ app.post('/api/diagrams/:id/apply-blueprint', async (req, res) => {
     await logEvent(req, 400, message);
     res.status(400).json({ error: message });
   }
+});
+
+const DIST_DIR = path.join(__dirname, 'dist');
+app.use(express.static(DIST_DIR));
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(DIST_DIR, 'index.html'));
 });
 
 app.listen(API_PORT, () => {
