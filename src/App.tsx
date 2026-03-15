@@ -54,6 +54,19 @@ const INITIAL_EDGES: Edge[] = [
   { id: 'e3', source: 'decision-1', target: 'end', label: 'Yes' },
 ];
 
+const MINI_ARC_TEST_NODES: Node[] = [
+  { id: 'a1', position: { x: 80, y: 120 }, data: { label: 'Agent posts opportunity' }, type: 'input' },
+  { id: 'a2', position: { x: 380, y: 120 }, data: { label: 'Advisor clicks Interested' } },
+  { id: 'a3', position: { x: 700, y: 120 }, data: { label: 'Agent selects advisor' } },
+  { id: 'a4', position: { x: 1020, y: 120 }, data: { label: 'Timeline + comments + value tracking' }, type: 'output' },
+];
+
+const MINI_ARC_TEST_EDGES: Edge[] = [
+  { id: 'ae1', source: 'a1', target: 'a2', label: 'Marketplace Open' },
+  { id: 'ae2', source: 'a2', target: 'a3', label: 'Interested' },
+  { id: 'ae3', source: 'a3', target: 'a4', label: 'Selected' },
+];
+
 mermaid.initialize({ startOnLoad: false, securityLevel: 'loose', theme: 'default' });
 
 function parseSafe<T>(raw: string | null, fallback: T): T {
@@ -183,6 +196,12 @@ export function App() {
     setNodes(INITIAL_NODES);
     setEdges(INITIAL_EDGES);
     setStatusMsg('Canvas reset (not saved yet)');
+  };
+
+  const loadMiniArcTestFlow = () => {
+    setNodes(MINI_ARC_TEST_NODES);
+    setEdges(MINI_ARC_TEST_EDGES);
+    setStatusMsg('Loaded mini ARC test flow. You can drag nodes around and edit as needed.');
   };
 
   const saveActive = async () => {
@@ -345,6 +364,12 @@ export function App() {
       </div>
 
       {mode === 'visual' ? (
+        <div className="coachMessage">
+          ✅ You can drag nodes, connect paths, and move everything around. Try <strong>Load Mini ARC Test</strong> to start with a sample flow.
+        </div>
+      ) : null}
+
+      {mode === 'visual' ? (
         <section className="visualWrap">
           <aside className="panel">
             <h2>Node Palette</h2>
@@ -352,6 +377,7 @@ export function App() {
             <button onClick={() => addNode('decision')}>+ Decision</button>
             <button onClick={() => addNode('end')}>+ End</button>
             <button onClick={clearVisual}>Reset Canvas</button>
+            <button onClick={loadMiniArcTestFlow}>Load Mini ARC Test</button>
             <p className="hint">Drag nodes, connect handles, pan/zoom with mouse.</p>
           </aside>
 

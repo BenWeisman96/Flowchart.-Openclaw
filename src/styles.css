@@ -44,6 +44,16 @@ header p { margin: 0 0 14px; color: #475569; }
   margin-bottom: 10px;
 }
 
+.coachMessage {
+  margin-bottom: 10px;
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #14532d;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
 main {
   display: grid;
   grid-template-columns: 1fr 1fr;
