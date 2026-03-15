@@ -30,10 +30,9 @@ args = "npm run dev"
 waitForPort = 5000
 
 [deployment]
-deploymentTarget = "autoscale"
+deploymentTarget = "static"
 build = ["npm", "run", "build"]
 publicDir = "dist"
-run = ["node", "api-server.mjs"]
 
 [[ports]]
 localPort = 5000
